@@ -1,31 +1,36 @@
 package ru.mobilap.localnotification;
 
+import android.Manifest;
 import android.app.Activity;
-import android.app.PendingIntent;
 import android.app.AlarmManager;
-import android.os.Bundle;
+import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Bundle;
 import android.util.Log;
-import android.net.Uri;
 import android.view.View;
-import java.util.Map;
-import java.util.List;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Calendar;
 
-import org.godotengine.godot.plugin.UsedByGodot;
-import org.json.JSONObject;
-import org.json.JSONArray;
-import org.json.JSONException;
+import androidx.annotation.CallSuper;
+import androidx.annotation.NonNull;
+import androidx.collection.ArraySet;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationManagerCompat;
 
-import org.godotengine.godot.Godot;
-import org.godotengine.godot.GodotLib;
 import org.godotengine.godot.Dictionary;
+import org.godotengine.godot.Godot;
 import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
+import org.godotengine.godot.plugin.UsedByGodot;
+
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Set;
 
 public class LocalNotification extends GodotPlugin {
+    private static final int REQUEST_PERMISSION_CODE = 1001;
+    private Activity activity;
 
     private final String TAG = LocalNotification.class.getName();
     private Dictionary notificationData = new Dictionary();
@@ -33,11 +38,13 @@ public class LocalNotification extends GodotPlugin {
     private String uri = null;
     private Boolean intentWasChecked = false;
 
-    public LocalNotification(Godot godot) 
+    public LocalNotification(Godot godot)
     {
         super(godot);
+
+        activity = getActivity();
+
         intentWasChecked = false;
-        //checkIntent();
     }
 
     @Override
@@ -63,12 +70,14 @@ public class LocalNotification extends GodotPlugin {
         );
     }
 
-    /*
     @Override
     public Set<SignalInfo> getPluginSignals() {
-        return Collections.singleton(loggedInSignal);
+        Set<SignalInfo> signals = new ArraySet<>();
+
+        signals.add(new SignalInfo("permission_result", Boolean.class));
+
+        return signals;
     }
-    */
 
     @Override
     public View onMainCreate(Activity activity) {
@@ -78,15 +87,27 @@ public class LocalNotification extends GodotPlugin {
     // Public methods
     @UsedByGodot
     public void init() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+
+        ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_PERMISSION_CODE);
     }
+
     @UsedByGodot
     public boolean isInited() {
         return true;
     }
+
     @UsedByGodot
     public boolean isEnabled() {
-        return true;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+
+        return NotificationManagerCompat.from(activity).areNotificationsEnabled();
     }
+
     @UsedByGodot
     public void showLocalNotification(String message, String title, int interval, int tag) {
         if(interval <= 0) return;
@@ -96,14 +117,12 @@ public class LocalNotification extends GodotPlugin {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         calendar.add(Calendar.SECOND, interval);
-               
-        AlarmManager am = (AlarmManager)getActivity().getSystemService(getActivity().ALARM_SERVICE);
-        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            am.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender);
-        } else {
-            am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender);
-        }
+
+        AlarmManager am = (AlarmManager)activity.getSystemService(activity.ALARM_SERVICE);
+
+        am.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender);
     }
+
     @UsedByGodot
     public void showRepeatingNotification(String message, String title, int interval, int tag, int repeat_duration) {
         if(interval <= 0) return;
@@ -113,27 +132,28 @@ public class LocalNotification extends GodotPlugin {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         calendar.add(Calendar.SECOND, interval);
-               
-        AlarmManager am = (AlarmManager)getActivity().getSystemService(getActivity().ALARM_SERVICE);
-        if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            am.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), repeat_duration*1000, sender);
-        } else {
-            am.setInexactRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), repeat_duration*1000, sender);
-        }
+
+        AlarmManager am = (AlarmManager)activity.getSystemService(activity.ALARM_SERVICE);
+
+        am.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), repeat_duration * 1000L, sender);
     }
+
     @UsedByGodot
     public void cancelLocalNotification(int tag) {
-        AlarmManager am = (AlarmManager)getActivity().getSystemService(getActivity().ALARM_SERVICE);
+        AlarmManager am = (AlarmManager)activity.getSystemService(activity.ALARM_SERVICE);
         PendingIntent sender = getPendingIntent("", "", tag);
         am.cancel(sender);
     }
+
     @UsedByGodot
     public void cancelAllNotifications() {
         Log.w(TAG, "cancelAllNotifications not implemented");
     }
+
     @UsedByGodot
     public void register_remote_notification() {
     }
+
     @UsedByGodot
     public String get_device_token() {
         return "";
@@ -142,11 +162,11 @@ public class LocalNotification extends GodotPlugin {
     // Internal methods
 
     private PendingIntent getPendingIntent(String message, String title, int tag) {
-        Intent i = new Intent(getActivity().getApplicationContext(), LocalNotificationReceiver.class);
+        Intent i = new Intent(activity.getApplicationContext(), LocalNotificationReceiver.class);
         i.putExtra("notification_id", tag);
         i.putExtra("message", message);
         i.putExtra("title", title);
-        PendingIntent sender = PendingIntent.getBroadcast(getActivity(), tag, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent sender = PendingIntent.getBroadcast(activity, tag, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return sender;
     }
 
@@ -155,9 +175,20 @@ public class LocalNotification extends GodotPlugin {
     }
 
     @Override public void onMainResume() {
-        //checkIntent();
         intentWasChecked = false;
-    } 
+    }
+
+    @CallSuper
+    @Override
+    public void onMainRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode != REQUEST_PERMISSION_CODE) {
+            return;
+        }
+
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+        emitSignal("permission_result", granted);
+    }
 
     private void checkIntent() {
         Log.w(TAG, "I'm going to check application intent");
@@ -195,16 +226,19 @@ public class LocalNotification extends GodotPlugin {
         }
         intentWasChecked = true;
     }
+
     @UsedByGodot
     public Dictionary get_notification_data() {
         if(!intentWasChecked) checkIntent();
         return notificationData;
     }
+
     @UsedByGodot
     public String get_deeplink_action() {
         if(!intentWasChecked) checkIntent();
         return action;
     }
+
     @UsedByGodot
     public String get_deeplink_uri() {
         if(!intentWasChecked) checkIntent();

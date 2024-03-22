@@ -47,8 +47,8 @@ dependencies {
      necessary since the Godot editor will also provide a version of the godot
      library when building the final binary.
      */
-    implementation 'io.github.m4gr3d:godot:3.5.1.stable'
-    implementation 'androidx.appcompat:appcompat:1.0.2'
+    compileOnly 'io.github.m4gr3d:godot:3.5.1.stable'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.work:work-runtime:2.7.1'
 }
 

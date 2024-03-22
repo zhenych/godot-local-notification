@@ -2,6 +2,8 @@ extends Node
 
 signal device_token_received(token)
 signal enabled
+signal permission_result(granted)
+
 var _ln = null
 
 onready var _analytics := $'/root/analytics' if has_node('/root/analytics') else null
@@ -10,6 +12,7 @@ func _ready() -> void:
     pause_mode = Node.PAUSE_MODE_PROCESS
     if Engine.has_singleton("LocalNotification"):
         _ln = Engine.get_singleton("LocalNotification")
+        _ln.connect("permission_result", self, "_on_permission_result")
     elif OS.get_name() == 'iOS':
         _ln = load("res://addons/localnotification-ios/localnotification.gdns").new()
         _ln.connect('notifications_enabled', self, '_on_notifications_enabled')
@@ -20,6 +23,9 @@ func _ready() -> void:
         push_warning('LocalNotification plugin not found!')
     else:
         print('LocalNotification plugin inited')
+
+func plugin_loaded() -> bool:
+	return _ln != null and is_instance_valid(_ln)
 
 func init() -> void:
     if _ln != null:
@@ -91,3 +97,6 @@ func _on_notifications_enabled() -> void:
 func _on_device_token_received(token) -> void:
     #print('on_device_token_received: %s'%var2str(token))
     emit_signal('device_token_received', token)
+
+func _on_permission_result(granted) -> void:
+	emit_signal("permission_result", granted)

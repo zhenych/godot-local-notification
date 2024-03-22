@@ -1,5 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="ru.mobilap.localnotification">
-
   <application>
     <!--
     Plugin metadata:
@@ -16,6 +15,4 @@
 
     <receiver android:name="ru.mobilap.localnotification.LocalNotificationReceiver" android:process=":remote" />
   </application>
-  <uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>
-  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
 </manifest>
