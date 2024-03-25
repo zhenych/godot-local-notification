@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -109,40 +110,46 @@ public class LocalNotification extends GodotPlugin {
     }
 
     @UsedByGodot
-    public void showLocalNotification(String message, String title, int interval, int tag) {
-        if(interval <= 0) return;
-        Log.d(TAG, "showLocalNotification: "+message+", "+Integer.toString(interval)+", "+Integer.toString(tag));
+    public void showLocalNotification(String message, String title, int delay_seconds, int tag) {
+        if(delay_seconds <= 0) return;
+
+        Log.d(TAG, "showLocalNotification: "+message+", "+Integer.toString(delay_seconds)+", "+Integer.toString(tag));
+
         PendingIntent sender = getPendingIntent(message, title, tag);
 
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
-        calendar.add(Calendar.SECOND, interval);
+        calendar.add(Calendar.SECOND, delay_seconds);
 
-        AlarmManager am = (AlarmManager)activity.getSystemService(activity.ALARM_SERVICE);
+        AlarmManager am = (AlarmManager) activity.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
 
-        am.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender);
+        am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender);
     }
 
     @UsedByGodot
-    public void showRepeatingNotification(String message, String title, int interval, int tag, int repeat_duration) {
-        if(interval <= 0) return;
-        Log.d(TAG, "showRepeatingNotification: "+message+", "+Integer.toString(interval)+", "+Integer.toString(tag)+" Repeat after: "+Integer.toString(repeat_duration));
+    public void showRepeatingNotification(String message, String title, int delay_seconds, int tag, int repeat_interval_seconds) {
+        if(delay_seconds <= 0) return;
+
+        Log.d(TAG, "showRepeatingNotification: "+message+", "+Integer.toString(delay_seconds)+", "+Integer.toString(tag)+" Repeat after: "+Integer.toString(repeat_interval_seconds));
+
         PendingIntent sender = getPendingIntent(message, title, tag);
 
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
-        calendar.add(Calendar.SECOND, interval);
+        calendar.add(Calendar.SECOND, delay_seconds);
 
-        AlarmManager am = (AlarmManager)activity.getSystemService(activity.ALARM_SERVICE);
+        AlarmManager am = (AlarmManager) activity.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
 
-        am.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), repeat_duration * 1000L, sender);
+        am.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), repeat_interval_seconds * 1000L, sender);
     }
 
     @UsedByGodot
     public void cancelLocalNotification(int tag) {
-        AlarmManager am = (AlarmManager)activity.getSystemService(activity.ALARM_SERVICE);
+        AlarmManager am = (AlarmManager) activity.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
         PendingIntent sender = getPendingIntent("", "", tag);
+
         am.cancel(sender);
+        sender.cancel();
     }
 
     @UsedByGodot
@@ -162,12 +169,13 @@ public class LocalNotification extends GodotPlugin {
     // Internal methods
 
     private PendingIntent getPendingIntent(String message, String title, int tag) {
-        Intent i = new Intent(activity.getApplicationContext(), LocalNotificationReceiver.class);
-        i.putExtra("notification_id", tag);
-        i.putExtra("message", message);
-        i.putExtra("title", title);
-        PendingIntent sender = PendingIntent.getBroadcast(activity, tag, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        return sender;
+        Intent intent = new Intent(activity.getApplicationContext(), LocalNotificationReceiver.class);
+
+        intent.putExtra("notification_id", tag);
+        intent.putExtra("message", message);
+        intent.putExtra("title", title);
+
+        return PendingIntent.getBroadcast(activity.getApplicationContext(), tag, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     @Override public void onMainActivityResult (int requestCode, int resultCode, Intent data)
