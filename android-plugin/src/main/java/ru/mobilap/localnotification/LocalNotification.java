@@ -123,7 +123,13 @@ public class LocalNotification extends GodotPlugin {
 
         AlarmManager am = (AlarmManager) activity.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
 
-        am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender);
+        long startAtMillis = calendar.getTimeInMillis();
+
+        calendar.add(Calendar.MINUTE, 10);
+
+        long endAtMillis = calendar.getTimeInMillis();
+
+        am.setWindow(AlarmManager.RTC_WAKEUP, startAtMillis, endAtMillis, sender);
     }
 
     @UsedByGodot
