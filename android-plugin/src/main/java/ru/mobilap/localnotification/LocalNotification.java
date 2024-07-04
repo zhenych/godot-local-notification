@@ -128,8 +128,11 @@ public class LocalNotification extends GodotPlugin {
         calendar.add(Calendar.MINUTE, 10);
 
         long endAtMillis = calendar.getTimeInMillis();
-
-        am.setWindow(AlarmManager.RTC_WAKEUP, startAtMillis, endAtMillis, sender);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, startAtMillis, sender);
+        } else {
+            am.setWindow(AlarmManager.RTC_WAKEUP, startAtMillis, endAtMillis, sender);
+        }
     }
 
     @UsedByGodot
